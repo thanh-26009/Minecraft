@@ -1,0 +1,148 @@
+name: 🎮 Minecraft Server Pixelmon
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Chọn hành động (start / stop)"
+        required: true
+        default: "start"
+  repository_dispatch:
+    types: [Start-Server, Stop-Server]
+
+jobs:
+  start-server:
+    if: >
+      (github.event_name == 'repository_dispatch' && github.event.action == 'Start-Server')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'start')
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 giờ
+
+    steps:
+      - name: ⬇️ Download Server
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
+
+      - name: 📁 Prepare dirs
+        run: |
+          echo "Creating rclone config..."
+          REMOTE_NAME="server-backup"
+          RCLONE_CONF="$HOME/.config/rclone/rclone.conf"
+          mkdir -p "$(dirname "$RCLONE_CONF")"
+          cat > "$RCLONE_CONF" <<EOL
+          [$REMOTE_NAME]
+          type = drive
+          client_id = 177351678679-j77al4hco0vgu0rtut2abm5b5lmkig34.apps.googleusercontent.com
+          client_secret = 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
+          scope = drive
+          token = {"access_token":"ya29.a0AQQ_BDSifCrCJbr79_A6XwifyY1PQ8eroN8ZPyuf1UHzGFC5ILTWReOqpTViQTJ1YQfxgwvT3goPQBEP3JwmHyPehFTkaed3U-RE51ctVttfg21h9SN6HURZ5q7H0VPVZF8hzHgfDRSvfpUJ60FeGzPf4LZdjDZ_jeKwvsQ5khr4dnMOXUdwYRgyLQ0T0qPuWGZ5F28aCgYKAfkSARMSFQHGX2MiH3XnI0aShRvkbtMDZM6IKw0206","token_type":"Bearer","refresh_token":"1//0e2O7UOQ46-HnCgYIARAAGA4SNwF-L9IroOcdI-89WyM0hhRssZPRdQd3Z8P0PQxYdC3g-BYmj7w5OmmF1mMlaB_4dxYv2jmBkIM","expiry":"2025-10-12T08:20:52.4800863+07:00","expires_in":3599}
+          team_drive =
+          EOL
+          echo "Testing rclone..."
+          rclone ls "$REMOTE_NAME": || { echo "Rclone test failed!"; exit 1; }
+          mkdir -p .backup
+
+      - name: 💾 Restore backup (optional)
+        run: |
+          rclone copy server-backup:/server.zip .backup/ --transfers 16 --checkers 16
+          if [ -f ".backup/server.zip" ]; then
+            unzip -o ".backup/server.zip" -d .
+            echo "✅ Backup restored."
+          else
+            echo "⚠️ No backup found."
+          fi
+
+      - name: 🚀 Start Playit Tunnel
+        run: |
+          wget -q https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64 -O playit
+          chmod +x playit
+          nohup ./playit --secret 27b8c3d202823e43416721a8b026d78847f62426a54e14031fb2314d7d05bfcd > playit.log 2>&1 &
+          echo "✅ Playit started in background."
+
+      - name: ▶️ Run Minecraft server
+        run: |
+          sudo apt update
+          sudo apt install -y openjdk-21-jdk
+          sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-21-openjdk-amd64/bin/java 1
+          sudo update-alternatives --set java /usr/lib/jvm/java-21-openjdk-amd64/bin/java
+          java -version
+          echo "eula=true" > eula.txt
+          nohup java -Xms1G -Xmx6G -jar server.jar nogui &
+          echo $! > minecraft.pid
+          echo "✅ Server restarted successfully (new PID: $(cat minecraft.pid))"
+
+      - name: ⏳ Keep Server alive
+        run: |
+          pid_file="minecraft.pid"
+
+          # Nếu chưa có PID file thì báo lỗi và dừng
+          if [ ! -f "$pid_file" ]; then
+            echo "❌ PID file not found — server may not be running."
+            exit 1
+          fi
+
+          pid=$(cat "$pid_file")
+          echo "📡 Monitoring Minecraft server (PID: $pid)..."
+
+          # Kiểm tra trong 160 phút (5 giây/lần = 1920 lần)
+          for i in $(seq 1 1920); do
+            if ps -p "$pid" > /dev/null 2>&1; then
+              echo "✅ Server (PID $pid) is running (check $i/1920)..."
+              sleep 5
+            else
+              echo "⚠️ Server stopped at check $i — will proceed to backup."
+              exit 0
+            fi
+          done
+
+          echo "⏰ Time limit reached (160m) — will proceed to backup."
+
+      - name: 📦 Save backup
+        run: |
+          zip -qr ".backup/server.zip" . -x ".git/*" ".github/*" ".backup/*" || true
+          echo "✅ Backup saved as server.zip"
+
+      - name: 📤 Push updated files
+        run: |
+          # Kiểm tra file backup tồn tại không
+          if [ -f ".backup/server.zip" ]; then
+            # Upload file lên Drive
+            rclone copy .backup/server.zip server-backup: --update || echo "❌ Upload failed."
+            echo "✅ Backup uploaded to Drive as server.zip"
+          else
+            echo "⚠️ No backup file to upload."
+          fi
+
+
+  stop-server:
+    if: >
+      (github.event_name == 'repository_dispatch' && github.event.action == 'Stop-Server')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'stop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 📦 Download mcrcon
+        run: |
+          curl -L -o mcrcon.tar.gz https://github.com/Tiiffi/mcrcon/releases/download/v0.7.2/mcrcon-0.7.2-linux-x86-64.tar.gz
+          tar -xzf mcrcon.tar.gz
+          echo "🔐 Cấp quyền cho mcrcon..."
+          chmod +x mcrcon
+
+      - name: 🛑 Stop Minecraft Server via RCON
+        run: |
+          echo "📢 Gửi thông báo..."
+          ./mcrcon -H 147.185.221.229 -P 24907 -p 26022009 -w 1 \
+            "say Server will stop in 10 seconds!" \
+            "say Server will stop in 9 seconds!" \
+            "say Server will stop in 8 seconds!" \
+            "say Server will stop in 7 seconds!" \
+            "say Server will stop in 6 seconds!" \
+            "say Server will stop in 5 seconds!" \
+            "say Server will stop in 4 seconds!" \
+            "say Server will stop in 3 seconds!" \
+            "say Server will stop in 2 seconds!" \
+            "say Server will stop in 1 second!" \
+            "say Server is stopping now!" \
+            "stop"
+          echo "✅ Server stopped successfully!"
