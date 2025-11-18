@@ -1,0 +1,45 @@
+name: Create VPS
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [create-vps]
+
+jobs:
+  start-vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TMATE_SERVER: nyc1.tmate.io
+
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v3
+
+      - name: 🔐 Start tmate session
+        run: |
+          sudo apt update -y && sudo apt install -y tmate
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait tmate-ready
+          SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
+          echo "$SSH" | tee "${{ github.event.client_payload.vps_name || 'manual-vps' }}.txt"
+
+      - name: ⏳ Keep VPS alive
+        run: |
+          for i in $(seq 1 $((180))); do
+            echo "🟢 Running minute $i/180..."
+            sleep 60
+          done
+
+      - name: 🧾 Push file lên repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+          zip -r backup_$(date +%Y%m%d_%H%M%S).zip ./world
+      
+          git add backup_*.zip
+          git commit -m "Backup tự động $(date)"
+          git push origin HEAD:${GITHUB_REF}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
