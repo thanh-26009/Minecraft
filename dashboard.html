@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MC Bot Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:       #080c10;
+      --panel:    #0d1520;
+      --border:   #1a2e44;
+      --green:    #00ff88;
+      --red:      #ff3860;
+      --yellow:   #ffd700;
+      --blue:     #00cfff;
+      --text:     #c8dff0;
+      --dim:      #4a6a88;
+      --font-mono: 'Share Tech Mono', monospace;
+      --font-ui:   'Exo 2', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,207,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,207,255,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+
+    .logo {
+      width: 44px; height: 44px;
+      background: var(--green);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(0,255,136,.5); }
+      50%      { box-shadow: 0 0 0 12px rgba(0,255,136,0); }
+    }
+
+    header h1 {
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    header h1 span { color: var(--green); }
+
+    /* ── Cards row ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--blue);
+    }
+
+    .card.green::after { background: var(--green); }
+    .card.red::after   { background: var(--red); }
+    .card.yellow::after{ background: var(--yellow); }
+
+    .card-label {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 8px;
+    }
+
+    .card-value {
+      font-family: var(--font-mono);
+      font-size: 1.35rem;
+      color: #fff;
+      word-break: break-all;
+    }
+
+    /* status badge inside card */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 1rem;
+    }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--dim);
+      flex-shrink: 0;
+    }
+
+    .dot.online  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 1.2s step-end infinite; }
+    .dot.offline { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+    .dot.connecting { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); animation: blink .8s step-end infinite; }
+
+    @keyframes blink { 50% { opacity: .3; } }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    button {
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: .85rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 7px;
+      padding: 12px 28px;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .35; cursor: not-allowed; }
+
+    #btnStart {
+      background: var(--green);
+      color: #000;
+    }
+
+    #btnStop {
+      background: transparent;
+      border: 1px solid var(--red);
+      color: var(--red);
+    }
+
+    #btnStop:hover:not(:disabled) { background: rgba(255,56,96,.1); }
+    #btnStart:hover:not(:disabled) { opacity: .85; }
+
+    /* ── Log panel ── */
+    .log-wrap {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 1s step-end infinite;
+      margin-right: 6px;
+    }
+
+    #logBox {
+      font-family: var(--font-mono);
+      font-size: .78rem;
+      color: #8fb8d0;
+      padding: 16px 18px;
+      height: 320px;
+      overflow-y: auto;
+      line-height: 1.7;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    #logBox::-webkit-scrollbar { width: 5px; }
+    #logBox::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .log-line { display: block; }
+    .log-line:last-child { color: #cde; }
+
+    /* highlight keywords */
+    .kw-ok      { color: var(--green); }
+    .kw-err     { color: var(--red); }
+    .kw-warn    { color: var(--yellow); }
+    .kw-info    { color: var(--blue); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">⬡</div>
+    <h1>MC Bot <span>Dashboard</span></h1>
+  </header>
+
+  <div class="cards">
+    <div class="card green">
+      <div class="card-label">Trạng thái</div>
+      <div class="card-value">
+        <span class="badge">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">—</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Tên bot</div>
+      <div class="card-value" id="usernameText">—</div>
+    </div>
+
+    <div class="card yellow">
+      <div class="card-label">Uptime</div>
+      <div class="card-value" id="uptimeText">00:00:00</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Server</div>
+      <div class="card-value" id="serverText">—</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnStart">▶ Bật Bot</button>
+    <button onclick="reconnectNow()" style="background:#f59e0b">⚡ Reconnect Now</button>
+    <button id="btnStop">■ Tắt Bot</button>
+  </div>
+
+  <div class="log-wrap">
+    <div class="log-header">
+      <span><span class="live-dot"></span>Live Logs</span>
+      <span id="logCount">0 dòng</span>
+    </div>
+    <div id="logBox"></div>
+  </div>
+
+</div>
+
+<script>
+  const statusDot   = document.getElementById('statusDot');
+  const statusText  = document.getElementById('statusText');
+  const usernameEl  = document.getElementById('usernameText');
+  const uptimeEl    = document.getElementById('uptimeText');
+  const serverEl    = document.getElementById('serverText');
+  const logBox      = document.getElementById('logBox');
+  const logCount    = document.getElementById('logCount');
+  const btnStart    = document.getElementById('btnStart');
+  const btnStop     = document.getElementById('btnStop');
+
+  let lastLogLen = 0;
+
+  function fmt(s) {
+    const h = String(Math.floor(s / 3600)).padStart(2,'0');
+    const m = String(Math.floor(s % 3600 / 60)).padStart(2,'0');
+    const sec = String(s % 60).padStart(2,'0');
+    return `${h}:${m}:${sec}`;
+  }
+
+  function colorLine(line) {
+    if (/error|err|kicked|disconnect/i.test(line))   return `<span class="log-line kw-err">${line}</span>`;
+    if (/warn|reconnect/i.test(line))                 return `<span class="log-line kw-warn">${line}</span>`;
+    if (/connected|started|sent|ready|jump/i.test(line)) return `<span class="log-line kw-ok">${line}</span>`;
+    if (/waiting|stability|dashboard/i.test(line))    return `<span class="log-line kw-info">${line}</span>`;
+    return `<span class="log-line">${line}</span>`;
+  }
+
+  function setStatus(s) {
+    statusText.textContent = s;
+    statusDot.className = 'dot';
+    if (s === 'Online')                             statusDot.classList.add('online');
+    else if (s === 'Stopped' || s === 'Disconnected') statusDot.classList.add('offline');
+    else                                            statusDot.classList.add('connecting');
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch('/api/status');
+      const d = await r.json();
+
+      setStatus(d.status);
+      usernameEl.textContent = d.username || '—';
+      uptimeEl.textContent   = fmt(d.uptime || 0);
+      serverEl.textContent   = location.hostname + ':25565';
+
+      btnStart.disabled = d.botEnabled;
+      btnStop.disabled  = !d.botEnabled;
+
+      if (d.logs.length !== lastLogLen) {
+        lastLogLen = d.logs.length;
+        logBox.innerHTML = d.logs.map(colorLine).join('\n');
+        logBox.scrollTop = logBox.scrollHeight;
+        logCount.textContent = `${d.logs.length} dòng`;
+      }
+    } catch(e) {
+      setStatus('Mất kết nối');
+    }
+  }
+
+  async function reconnectNow() {
+  await fetch('/api/reconnect', { method: 'POST' });
+}
+
+  btnStart.addEventListener('click', async () => {
+    btnStart.disabled = true;
+    await fetch('/api/start', { method: 'POST' });
+  });
+
+  btnStop.addEventListener('click', async () => {
+    btnStop.disabled = true;
+    await fetch('/api/stop', { method: 'POST' });
+  });
+
+  poll();
+  setInterval(poll, 1500);
+</script>
+</body>
+</html>
