@@ -61,7 +61,8 @@ function proxyLog(msg) {
 
 // ══════════════════════════════════════════════════════════
 //  TẠO SELF-SIGNED CERT NẾU CHƯA CÓ
-//  Dùng openssl — cần cài trên server
+//  Ưu tiên: openssl CLI → fallback Node.js crypto thuần
+//  → Không cần cài thêm gì, chạy được mọi môi trường
 // ══════════════════════════════════════════════════════════
 
 function ensureCerts() {
@@ -73,22 +74,130 @@ function ensureCerts() {
   proxyLog('Generating self-signed TLS certificate...');
   fs.mkdirSync(CERT_DIR, { recursive: true });
 
+  // ── Thử openssl trước (cert mạnh hơn, RSA 4096) ─────────
   try {
     execSync(
       `openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes` +
       ` -keyout "${KEY_FILE}"` +
       ` -out "${CERT_FILE}"` +
-      ` -subj "/CN=ProxyServer/O=Proxy/C=VN"` +
-      ` -addext "subjectAltName=IP:127.0.0.1,IP:0.0.0.0"`,
+      ` -subj "/CN=ProxyServer/O=Proxy/C=VN"`,
       { stdio: 'pipe' }
     );
-    proxyLog(`Cert saved to ${CERT_DIR}`);
+    proxyLog('Cert generated via openssl (RSA-4096).');
+    return;
+  } catch (_) {
+    proxyLog('openssl not found, falling back to Node.js crypto...');
+  }
+
+  // ── Fallback: Node.js crypto thuần (không cần gói ngoài) ─
+  // Node.js >= 15 có crypto.generateKeyPairSync + X509Certificate
+  // Node.js >= 17.1 có crypto.X509Certificate.prototype.sign
+  // Dùng cách tương thích nhất: tự encode ASN.1/DER thủ công
+  // RSA-2048, self-signed, valid 10 năm
+  try {
+    const crypto = require('crypto');
+
+    // Tạo cặp khoá RSA-2048
+    const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding:  { type: 'spki',  format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+
+    // Dùng tls.createSecureContext để kiểm tra, sau đó dùng
+    // forge-style encoding tối giản — thực ra Node >= 15 cho phép
+    // tạo cert bằng cách dùng selfsigned pattern qua undocumented
+    // internal. Cách an toàn nhất là gọi `crypto` + tự build DER.
+    // Để đơn giản và không cần dependency, ta dùng kỹ thuật:
+    // tạo cert PEM tối giản dùng node-forge algorithm thuần JS
+    // được inline dưới đây (chỉ ~100 dòng, không import gói ngoài).
+
+    const certPem = buildSelfSignedCert(privateKey, publicKey, crypto);
+
+    fs.writeFileSync(KEY_FILE,  privateKey, 'utf8');
+    fs.writeFileSync(CERT_FILE, certPem,    'utf8');
+    proxyLog('Cert generated via Node.js crypto (RSA-2048).');
   } catch (e) {
-    proxyLog('ERROR: openssl not found or failed. Install openssl first.');
-    proxyLog('  Ubuntu: sudo apt install openssl');
-    proxyLog('  Or place server.crt + server.key manually into ./certs/');
+    proxyLog(`ERROR: Cannot generate cert: ${e.message}`);
+    proxyLog('Fix: place server.crt + server.key manually into ./certs/');
     process.exit(1);
   }
+}
+
+// ── Tự build X.509 self-signed cert (DER → PEM) ───────────
+// Không dùng bất kỳ npm package nào
+function buildSelfSignedCert(privateKeyPem, publicKeyPem, crypto) {
+  // Helper encode ASN.1 DER
+  function derLen(len) {
+    if (len < 0x80) return Buffer.from([len]);
+    if (len < 0x100) return Buffer.from([0x81, len]);
+    return Buffer.from([0x82, (len >> 8) & 0xff, len & 0xff]);
+  }
+  function der(tag, content) {
+    return Buffer.concat([Buffer.from([tag]), derLen(content.length), content]);
+  }
+
+  const seq  = (c) => der(0x30, c);
+  const ctx0 = (c) => der(0xa0, c);
+  const int_ = (c) => der(0x02, c);
+  const bitStr = (c) => der(0x03, Buffer.concat([Buffer.from([0x00]), c]));
+  const oid  = (bytes) => der(0x06, Buffer.from(bytes));
+  const utf8 = (s) => der(0x0c, Buffer.from(s, 'utf8'));
+  const set_ = (c) => der(0x31, c);
+  const utc  = (s) => der(0x17, Buffer.from(s, 'ascii'));
+  const null_= () => Buffer.from([0x05, 0x00]);
+
+  // OIDs
+  const OID_SHA256RSA = [0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x01,0x0b];
+  const OID_CN        = [0x55,0x04,0x03];
+
+  // Dates — valid 10 năm, format YYMMDDHHmmssZ
+  const pad = (n) => String(n).padStart(2,'0');
+  const fmtUTC = (d) => {
+    const yy = String(d.getUTCFullYear()).slice(2);
+    return yy + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) +
+           pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';
+  };
+  const now   = new Date();
+  const later = new Date(now); later.setFullYear(later.getFullYear() + 10);
+
+  // Serial number
+  const serial = crypto.randomBytes(8);
+  serial[0] &= 0x7f;
+
+  // Subject / Issuer: CN=ProxyServer
+  const name = seq(set_(seq(Buffer.concat([oid(OID_CN), utf8('ProxyServer')]))));
+
+  // subjectPublicKeyInfo — lấy thẳng DER từ PEM SPKI (đã là đúng format)
+  const spkiDer = Buffer.from(
+    publicKeyPem.replace(/-----[^-]+-----/g, '').replace(/\s/g, ''), 'base64'
+  );
+
+  // Algorithm identifier SHA256withRSA
+  const algId = seq(Buffer.concat([oid(OID_SHA256RSA), null_()]));
+
+  // TBSCertificate
+  const tbs = seq(Buffer.concat([
+    ctx0(int_(Buffer.from([0x02]))),                              // version: v3
+    int_(serial),                                                  // serialNumber
+    algId,                                                         // signature alg
+    name,                                                          // issuer
+    seq(Buffer.concat([utc(fmtUTC(now)), utc(fmtUTC(later))])),  // validity
+    name,                                                          // subject
+    spkiDer,                                                       // subjectPublicKeyInfo (raw DER)
+  ]));
+
+  // Ký SHA256withRSA
+  const sign = crypto.createSign('SHA256');
+  sign.update(tbs);
+  const signature = sign.sign(privateKeyPem);
+
+  // Certificate = SEQUENCE { tbs, algId, BIT STRING signature }
+  const certDer = seq(Buffer.concat([tbs, algId, bitStr(signature)]));
+
+  // PEM
+  const b64 = certDer.toString('base64').match(/.{1,64}/g).join('\n');
+  return `-----BEGIN CERTIFICATE-----\n${b64}\n-----END CERTIFICATE-----\n`;
 }
 
 ensureCerts();
