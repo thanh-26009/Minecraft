@@ -14,6 +14,8 @@
       --red:      #ff3860;
       --yellow:   #ffd700;
       --blue:     #00cfff;
+      --purple:   #c084fc;
+      --orange:   #fb923c;
       --text:     #c8dff0;
       --dim:      #4a6a88;
       --font-mono: 'Share Tech Mono', monospace;
@@ -30,7 +32,6 @@
       overflow-x: hidden;
     }
 
-    /* grid background */
     body::before {
       content: '';
       position: fixed;
@@ -46,7 +47,7 @@
     .wrap {
       position: relative;
       z-index: 1;
-      max-width: 900px;
+      max-width: 960px;
       margin: 0 auto;
       padding: 32px 20px 60px;
     }
@@ -83,89 +84,95 @@
 
     header h1 span { color: var(--green); }
 
-    /* ── Cards row ── */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
+    /* ── Section label ── */
+    .section-label {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 12px;
+      padding-left: 2px;
     }
 
-    .card {
+    /* ── Status panel (compact single card) ── */
+    .status-panel {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 20px 18px;
-      position: relative;
       overflow: hidden;
+      margin-bottom: 24px;
     }
 
-    .card::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: var(--blue);
+    .status-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid var(--border);
     }
 
-    .card.green::after { background: var(--green); }
-    .card.red::after   { background: var(--red); }
-    .card.yellow::after{ background: var(--yellow); }
+    .status-cell {
+      padding: 16px 18px;
+      border-right: 1px solid var(--border);
+    }
+
+    .status-cell:last-child { border-right: none; }
 
     .card-label {
-      font-size: .7rem;
+      font-size: .65rem;
       font-weight: 600;
-      letter-spacing: .12em;
+      letter-spacing: .14em;
       text-transform: uppercase;
       color: var(--dim);
-      margin-bottom: 8px;
+      margin-bottom: 7px;
     }
 
     .card-value {
       font-family: var(--font-mono);
-      font-size: 1.35rem;
+      font-size: 1.1rem;
       color: #fff;
       word-break: break-all;
     }
 
-    /* status badge inside card */
+    /* status badge */
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 7px;
       font-family: var(--font-mono);
-      font-size: 1rem;
+      font-size: 1.1rem;
     }
 
     .dot {
-      width: 10px; height: 10px;
+      width: 9px; height: 9px;
       border-radius: 50%;
       background: var(--dim);
       flex-shrink: 0;
     }
 
-    .dot.online  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 1.2s step-end infinite; }
-    .dot.offline { background: var(--red);   box-shadow: 0 0 8px var(--red); }
-    .dot.connecting { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); animation: blink .8s step-end infinite; }
+    .dot.online     { background: var(--green);  box-shadow: 0 0 7px var(--green);  animation: blink 1.2s step-end infinite; }
+    .dot.offline    { background: var(--red);    box-shadow: 0 0 7px var(--red); }
+    .dot.connecting { background: var(--yellow); box-shadow: 0 0 7px var(--yellow); animation: blink .8s step-end infinite; }
 
     @keyframes blink { 50% { opacity: .3; } }
 
-    /* ── Controls ── */
+    /* ── Controls (inside panel, bottom row) ── */
     .controls {
       display: flex;
-      gap: 14px;
-      margin-bottom: 24px;
+      gap: 10px;
+      padding: 14px 18px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--border);
     }
 
     button {
       font-family: var(--font-ui);
       font-weight: 600;
-      font-size: .85rem;
+      font-size: .78rem;
       letter-spacing: .1em;
       text-transform: uppercase;
       border: none;
-      border-radius: 7px;
-      padding: 12px 28px;
+      border-radius: 6px;
+      padding: 9px 20px;
       cursor: pointer;
       transition: opacity .15s, transform .1s;
     }
@@ -178,14 +185,166 @@
       color: #000;
     }
 
+    #btnReconnect {
+      background: #f59e0b;
+      color: #000;
+    }
+
     #btnStop {
       background: transparent;
       border: 1px solid var(--red);
       color: var(--red);
     }
 
-    #btnStop:hover:not(:disabled) { background: rgba(255,56,96,.1); }
-    #btnStart:hover:not(:disabled) { opacity: .85; }
+    #btnStop:hover:not(:disabled)      { background: rgba(255,56,96,.1); }
+    #btnStart:hover:not(:disabled)     { opacity: .85; }
+    #btnReconnect:hover:not(:disabled) { opacity: .85; }
+
+    @media (max-width: 600px) {
+      .status-row { grid-template-columns: 1fr 1fr; }
+      .status-cell:nth-child(2) { border-right: none; }
+      .status-cell:nth-child(3) { border-right: 1px solid var(--border); border-top: 1px solid var(--border); }
+      .status-cell:nth-child(4) { border-right: none; border-top: 1px solid var(--border); }
+    }
+
+    /* ── DonutSMP Stats Panel ── */
+    .stats-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .stats-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stats-title {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stats-title .gem { color: var(--purple); font-size: .9rem; }
+
+    .stats-body {
+      padding: 18px;
+    }
+
+    .next-refresh {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .refresh-bar {
+      width: 80px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .refresh-fill {
+      height: 100%;
+      background: var(--purple);
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+
+    .stats-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .stat-block {
+      background: #0a1520;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .3s;
+    }
+
+    .stat-block.has-data { border-color: #2a3e58; }
+
+    .stat-block::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    .stat-block.shards::before   { background: linear-gradient(90deg, var(--purple), var(--blue)); }
+    .stat-block.playtime::before { background: linear-gradient(90deg, var(--orange), var(--yellow)); }
+
+    .stat-icon {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .stat-name {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 1.6rem;
+      font-weight: 400;
+      color: #fff;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-value.shards-val   { color: var(--purple); text-shadow: 0 0 20px rgba(192,132,252,.4); }
+    .stat-value.playtime-val { color: var(--orange);  text-shadow: 0 0 20px rgba(251,146,60,.3); }
+
+    .stat-detail {
+      font-family: var(--font-mono);
+      font-size: .65rem;
+      color: var(--dim);
+      margin-top: 3px;
+    }
+
+    .stat-loading {
+      font-family: var(--font-mono);
+      font-size: .8rem;
+      color: var(--dim);
+      font-style: italic;
+    }
+
+    .fetch-status {
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      padding: 6px 12px;
+      border-radius: 5px;
+      display: none;
+    }
+
+    .fetch-status.ok      { display: inline-block; color: var(--green);  background: rgba(0,255,136,.08); }
+    .fetch-status.err     { display: inline-block; color: var(--red);    background: rgba(255,56,96,.08); }
+    .fetch-status.loading { display: inline-block; color: var(--yellow); background: rgba(255,215,0,.08); animation: blink .8s step-end infinite; }
 
     /* ── Log panel ── */
     .log-wrap {
@@ -235,11 +394,15 @@
     .log-line { display: block; }
     .log-line:last-child { color: #cde; }
 
-    /* highlight keywords */
-    .kw-ok      { color: var(--green); }
-    .kw-err     { color: var(--red); }
-    .kw-warn    { color: var(--yellow); }
-    .kw-info    { color: var(--blue); }
+    .kw-ok   { color: var(--green); }
+    .kw-err  { color: var(--red); }
+    .kw-warn { color: var(--yellow); }
+    .kw-info { color: var(--blue); }
+
+    @media (max-width: 500px) {
+      .stats-cards { grid-template-columns: 1fr; }
+      .stat-value { font-size: 1.3rem; }
+    }
   </style>
 </head>
 <body>
@@ -250,39 +413,84 @@
     <h1>MC Bot <span>Dashboard</span></h1>
   </header>
 
-  <div class="cards">
-    <div class="card green">
-      <div class="card-label">Trạng thái</div>
-      <div class="card-value">
-        <span class="badge">
-          <span class="dot" id="statusDot"></span>
-          <span id="statusText">—</span>
-        </span>
+  <!-- Bot status + controls (compact single panel) -->
+  <div class="section-label">Trạng thái bot</div>
+  <div class="status-panel">
+
+    <!-- Row 1: stat cells -->
+    <div class="status-row">
+      <div class="status-cell">
+        <div class="card-label">Trạng thái</div>
+        <div class="card-value">
+          <span class="badge">
+            <span class="dot" id="statusDot"></span>
+            <span id="statusText">—</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="status-cell">
+        <div class="card-label">Tên bot</div>
+        <div class="card-value" id="usernameText">—</div>
+      </div>
+
+      <div class="status-cell">
+        <div class="card-label">Uptime</div>
+        <div class="card-value" id="uptimeText">00:00:00</div>
+      </div>
+
+      <div class="status-cell">
+        <div class="card-label">Server</div>
+        <div class="card-value" id="serverText">—</div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-label">Tên bot</div>
-      <div class="card-value" id="usernameText">—</div>
-    </div>
+  </div>
 
-    <div class="card yellow">
-      <div class="card-label">Uptime</div>
-      <div class="card-value" id="uptimeText">00:00:00</div>
+  <!-- DonutSMP Player Stats -->
+  <div class="stats-panel">
+    <div class="stats-header">
+      <div class="stats-title">
+        <span class="gem">💎</span>
+        DonutSMP Player Stats
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button
+          onclick="forceRefreshStats()"
+          style="padding:5px 14px;font-size:.7rem;background:transparent;border:1px solid var(--purple);color:var(--purple);border-radius:5px;"
+        >↻ Refresh</button>
+        <span class="fetch-status" id="fetchStatus"></span>
+        <div class="next-refresh">
+          <span id="countdownText">—</span>
+          <div class="refresh-bar"><div class="refresh-fill" id="refreshFill" style="width:100%"></div></div>
+        </div>
+      </div>
     </div>
-
-    <div class="card">
-      <div class="card-label">Server</div>
-      <div class="card-value" id="serverText">—</div>
+    <div class="stats-body">
+      <div class="stats-cards">
+        <div class="stat-block shards" id="blockShards">
+          <span class="stat-icon">💎</span>
+          <div class="stat-name">Shards</div>
+          <div class="stat-value shards-val" id="shardsVal"><span class="stat-loading">—</span></div>
+          <div class="stat-detail" id="shardsDetail"></div>
+        </div>
+        <div class="stat-block playtime" id="blockPlaytime">
+          <span class="stat-icon">⏱️</span>
+          <div class="stat-name">Playtime</div>
+          <div class="stat-value playtime-val" id="playtimeVal"><span class="stat-loading">—</span></div>
+          <div class="stat-detail" id="playtimeDetail"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Controls -->
+    <div class="controls">
+      <button id="btnStart">▶ Bật Bot</button>
+      <button onclick="reconnectNow()" id="btnReconnect">⚡ Reconnect</button>
+      <button id="btnStop">■ Tắt Bot</button>
     </div>
   </div>
 
-  <div class="controls">
-    <button id="btnStart">▶ Bật Bot</button>
-    <button onclick="reconnectNow()" style="background:#f59e0b">⚡ Reconnect Now</button>
-    <button id="btnStop">■ Tắt Bot</button>
-  </div>
-
+  <!-- Logs -->
   <div class="log-wrap">
     <div class="log-header">
       <span><span class="live-dot"></span>Live Logs</span>
@@ -294,54 +502,52 @@
 </div>
 
 <script>
-  const statusDot   = document.getElementById('statusDot');
-  const statusText  = document.getElementById('statusText');
-  const usernameEl  = document.getElementById('usernameText');
-  const uptimeEl    = document.getElementById('uptimeText');
-  const serverEl    = document.getElementById('serverText');
-  const logBox      = document.getElementById('logBox');
-  const logCount    = document.getElementById('logCount');
-  const btnStart    = document.getElementById('btnStart');
-  const btnStop     = document.getElementById('btnStop');
+  // ── Bot status polling ──────────────────────────────────
+  const statusDot  = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const usernameEl = document.getElementById('usernameText');
+  const uptimeEl   = document.getElementById('uptimeText');
+  const serverEl   = document.getElementById('serverText');
+  const logBox     = document.getElementById('logBox');
+  const logCount   = document.getElementById('logCount');
+  const btnStart   = document.getElementById('btnStart');
+  const btnStop    = document.getElementById('btnStop');
 
   let lastLogLen = 0;
 
   function fmt(s) {
-    const h = String(Math.floor(s / 3600)).padStart(2,'0');
-    const m = String(Math.floor(s % 3600 / 60)).padStart(2,'0');
+    const h   = String(Math.floor(s / 3600)).padStart(2,'0');
+    const m   = String(Math.floor(s % 3600 / 60)).padStart(2,'0');
     const sec = String(s % 60).padStart(2,'0');
     return `${h}:${m}:${sec}`;
   }
 
   function colorLine(line) {
-    if (/error|err|kicked|disconnect/i.test(line))   return `<span class="log-line kw-err">${line}</span>`;
-    if (/warn|reconnect/i.test(line))                 return `<span class="log-line kw-warn">${line}</span>`;
-    if (/connected|started|sent|ready|jump/i.test(line)) return `<span class="log-line kw-ok">${line}</span>`;
-    if (/waiting|stability|dashboard/i.test(line))    return `<span class="log-line kw-info">${line}</span>`;
+    if (/error|err|kicked|disconnect/i.test(line))        return `<span class="log-line kw-err">${line}</span>`;
+    if (/warn|reconnect/i.test(line))                     return `<span class="log-line kw-warn">${line}</span>`;
+    if (/connected|started|sent|ready|jump/i.test(line))  return `<span class="log-line kw-ok">${line}</span>`;
+    if (/waiting|stability|dashboard/i.test(line))        return `<span class="log-line kw-info">${line}</span>`;
     return `<span class="log-line">${line}</span>`;
   }
 
   function setStatus(s) {
     statusText.textContent = s;
     statusDot.className = 'dot';
-    if (s === 'Online')                             statusDot.classList.add('online');
-    else if (s === 'Stopped' || s === 'Disconnected') statusDot.classList.add('offline');
-    else                                            statusDot.classList.add('connecting');
+    if (s === 'Online')                                   statusDot.classList.add('online');
+    else if (s === 'Stopped' || s === 'Disconnected')    statusDot.classList.add('offline');
+    else                                                  statusDot.classList.add('connecting');
   }
 
   async function poll() {
     try {
       const r = await fetch('/api/status');
       const d = await r.json();
-
       setStatus(d.status);
       usernameEl.textContent = d.username || '—';
       uptimeEl.textContent   = fmt(d.uptime || 0);
       serverEl.textContent   = location.hostname + ':25565';
-
       btnStart.disabled = d.botEnabled;
       btnStop.disabled  = !d.botEnabled;
-
       if (d.logs.length !== lastLogLen) {
         lastLogLen = d.logs.length;
         logBox.innerHTML = d.logs.map(colorLine).join('\n');
@@ -354,8 +560,8 @@
   }
 
   async function reconnectNow() {
-  await fetch('/api/reconnect', { method: 'POST' });
-}
+    await fetch('/api/reconnect', { method: 'POST' });
+  }
 
   btnStart.addEventListener('click', async () => {
     btnStart.disabled = true;
@@ -369,6 +575,121 @@
 
   poll();
   setInterval(poll, 1500);
+
+  // ── DonutSMP Stats (gọi endpoint nội bộ, không CORS) ────
+  const fetchStatusEl  = document.getElementById('fetchStatus');
+  const shardsVal      = document.getElementById('shardsVal');
+  const shardsDetail   = document.getElementById('shardsDetail');
+  const playtimeVal    = document.getElementById('playtimeVal');
+  const playtimeDetail = document.getElementById('playtimeDetail');
+  const countdownText  = document.getElementById('countdownText');
+  const refreshFill    = document.getElementById('refreshFill');
+
+  let refreshMs       = 10 * 60 * 1000;
+  let nextRefreshIn   = refreshMs;
+  let countdownStart  = Date.now();
+  let countdownTimer  = null;
+
+  function setFetchStatus(type, msg) {
+    fetchStatusEl.className = 'fetch-status ' + type;
+    fetchStatusEl.textContent = msg;
+  }
+
+  function fmtPlaytime(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const d = Math.floor(totalSec / 86400);
+    const h = Math.floor((totalSec % 86400) / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    if (d >= 1) return `${d} ngày ${h} giờ ${m} phút`;
+    if (h >= 1) return `${h} giờ ${m} phút`;
+    return `${m} phút`;
+  }
+
+  function fmtNumber(n) {
+    return Number(n).toLocaleString('vi-VN');
+  }
+
+  function startCountdown(remainingMs, totalMs) {
+    refreshMs = totalMs;
+    if (countdownTimer) clearInterval(countdownTimer);
+
+    let remaining = remainingMs;
+    countdownStart = Date.now();
+
+    function tick() {
+      const elapsed  = Date.now() - countdownStart;
+      const left     = Math.max(0, remaining - elapsed);
+      const m = Math.floor(left / 60000);
+      const s = Math.floor((left % 60000) / 1000);
+      countdownText.textContent = `${m}:${String(s).padStart(2,'0')}`;
+      refreshFill.style.width  = ((left / totalMs) * 100) + '%';
+      if (left <= 0) clearInterval(countdownTimer);
+    }
+
+    tick();
+    countdownTimer = setInterval(tick, 1000);
+  }
+
+  async function fetchStats() {
+    try {
+      const res  = await fetch('/api/donut-stats');
+      const json = await res.json();
+
+      // Cập nhật countdown từ server
+      startCountdown(json.nextRefreshIn, json.refreshMs);
+
+      if (json.loading) {
+        setFetchStatus('loading', '⏳ Đang tải...');
+        shardsVal.innerHTML   = '<span class="stat-loading">loading...</span>';
+        playtimeVal.innerHTML = '<span class="stat-loading">loading...</span>';
+        return;
+      }
+
+      if (json.error) {
+        setFetchStatus('err', '✕ ' + json.error.slice(0, 60));
+        shardsVal.innerHTML   = '<span class="stat-loading">—</span>';
+        playtimeVal.innerHTML = '<span class="stat-loading">—</span>';
+        return;
+      }
+
+      if (json.data) {
+        const d = json.data;
+
+        // Shards
+        shardsVal.textContent    = fmtNumber(d.shards);
+        shardsDetail.textContent = `${Number(d.shards).toLocaleString()} shards tổng cộng`;
+        document.getElementById('blockShards').classList.add('has-data');
+
+        // Playtime
+        playtimeVal.textContent    = fmtPlaytime(d.playtime);
+        playtimeDetail.textContent = `≈ ${(d.playtime / 3600000).toFixed(1)}h tổng cộng`;
+        document.getElementById('blockPlaytime').classList.add('has-data');
+
+        // Thời gian fetch
+        const t = new Date(d.fetchedAt);
+        const ts = `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+        setFetchStatus('ok', `✓ ${ts}`);
+      } else {
+        // Chưa có data (server vừa khởi động)
+        setFetchStatus('loading', '⏳ Chờ dữ liệu...');
+        shardsVal.innerHTML   = '<span class="stat-loading">loading...</span>';
+        playtimeVal.innerHTML = '<span class="stat-loading">loading...</span>';
+      }
+    } catch (e) {
+      setFetchStatus('err', '✕ Không kết nối được server');
+    }
+  }
+
+  async function forceRefreshStats() {
+    setFetchStatus('loading', '⏳ Đang tải...');
+    await fetch('/api/donut-refresh', { method: 'POST' });
+    // Đợi 1 giây rồi poll lại để lấy kết quả
+    setTimeout(fetchStats, 1000);
+  }
+
+  // Poll stats mỗi 5 giây để cập nhật countdown và nhận data mới
+  fetchStats();
+  setInterval(fetchStats, 5000);
 </script>
 </body>
 </html>
